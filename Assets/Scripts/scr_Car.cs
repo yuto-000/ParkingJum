@@ -1,182 +1,271 @@
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.SocialPlatforms;
+
 
 public class scr_Car : MonoBehaviour
 {
-    public GameObject game;
-    BoxCollider boxCollider;
 
-    private Vector3 pos;
+    public GameObject Car;
+    BoxCollider BoxCollider;
 
-    private Vector3 touchStartPos;
-    private Vector3 touchNowPos;
-    private string direction;
-    private bool isTouch;
+    private Vector3 Pos;
 
-   
-    private bool isMove;
-    [SerializeField] private float moveSpeed;
-    private bool hit;
-    private bool kotei;
+    private Vector3 TouchStartPos;
+    private Vector3 TouchNowPos;
+    public string Direction;
+
+
+    [SerializeField] private float MoveSpeed = 0.05f;
+    public bool Hit;
+    private bool Lock;
+
+    int time;
+
+    scr_Wheel s_Wheel;
     private void Start()
     {
-        isTouch = false;
-        isMove = false;
-        hit = false;
-        kotei = false;
-        boxCollider = GetComponent<BoxCollider>();
+        s_Wheel = this.gameObject.GetComponent<scr_Wheel>();
+        Hit = false;
+        Lock = false;
+        BoxCollider = GetComponent<BoxCollider>();
     }
 
     private void Update()
     {
-        if (!hit)
+        time--;
+        if(time==0)
+            Lock = false;
+
+        if (!Hit)
         {
 
             RaycastHit hits;
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out hits))
             {
-
-                if (hits.collider.gameObject == game)
+                if (hits.collider.gameObject == Car)
                 {
                     if (Input.GetMouseButtonDown(0))
                     {
-                        touchStartPos = Input.mousePosition;
-                        kotei = true;
-                        game.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.None;
+                        TouchStartPos = Input.mousePosition;
+                        Lock = true;
+                        Car.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.None;
                     
-                        game.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeRotation;
+                        Car.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeRotation;
                     }
                 }
             }
-            if (Input.GetMouseButtonUp(0) && kotei)
+            if (Input.GetMouseButtonUp(0) && Lock)
             {
-                hit = true;
+                Hit = true;
             }
 
         }
-        if (hit)
+        if (Hit)
         {
 
             Move();
         }
 
-        if (!hit)
+        if (!Hit)
         {
-            touchNowPos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, Input.mousePosition.z);
+            TouchNowPos = new Vector3(Input.mousePosition.x, Input.mousePosition.y, Input.mousePosition.z);
             GetDirection();
         }
-        if (!kotei)
+        if (!Lock)
         {
-            game.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeAll;
+            Car.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeAll;
 
         }
+
+
+
 
     }
     private void GetDirection()
     {
-        float directionX = touchNowPos.x - touchStartPos.x;
-        float directionY = touchNowPos.y - touchStartPos.y;
-        if (game.transform.rotation.y > 0)
-        {
-            if (Mathf.Abs(directionY) < Mathf.Abs(directionX))
-            {
-                if (30 < directionX)
-                {
-                    direction = "right";
-                }
-                else if (-30 > directionX)
-                {
-                    direction = "left";
-                }
-            }
-            else
-            {
-                direction = "touch";
-            }
-        }
-        else if (game.transform.rotation.y == 0)
+        float directionX = TouchNowPos.x - TouchStartPos.x;
+        float directionY = TouchNowPos.y - TouchStartPos.y;
+        if (Car.transform.rotation.y == 0 || Car.transform.rotation.y == 1)
         {
 
             if (Mathf.Abs(directionX) < Mathf.Abs(directionY))
             {
                 if (30 < directionY)
                 {
-                    direction = "up";
+                    Direction = "up";
                 }
                 else if (-30 > directionY)
                 {
-                    direction = "down";
+                    Direction = "down";
                 }
             }
             else
             {
-                direction = "touch";
+                Direction = "touch";
+            } 
+        }
+        else if (Car.transform.rotation.y > 0 || Car.transform.rotation.y < 0)
+        {
+            if (Mathf.Abs(directionY) < Mathf.Abs(directionX))
+            {
+                if (30 < directionX)
+                {
+                    Direction = "right";
+                }
+                else if (-30 > directionX)
+                {
+                    Direction = "left";
+                }
             }
+            else
+            {
+                Direction = "touch";
+            }
+        
         }
 
-      
-
-        if (direction == null || direction == "touch") { return; }
-
-        isTouch = false;
-        isMove = true;
     }
 
     private void Move()
     {
-        pos = game.transform.position;
-        switch (direction)
+        Pos = Car.transform.position;
+        switch (Direction)
         {
             case "up":
-                pos.z += moveSpeed;
+                Pos.z += MoveSpeed;
                 break;
 
             case "down":
-                pos.z -= moveSpeed;
+                Pos.z -= MoveSpeed;
                 break;
 
             case "right":
-                pos.x += moveSpeed;
+                Pos.x += MoveSpeed;
                 break;
 
             case "left":
-                pos.x -= moveSpeed;
+                Pos.x -= MoveSpeed;
                 break;
             case "touch":
-                kotei = false;
-                hit = false;
+                Lock = false;
+                Hit = false;
                 break;
 
 
 
         }
 
-        game.transform.position = pos;
+        Car.transform.position = Pos;
     }
 
 
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.tag == "Car")
+       
+        if (collision.gameObject.tag == "Car" && Hit)
         {
+            s_Wheel.Move = false;
+            if (collision.transform.rotation.y != Car.transform.rotation.y)
+            {
+                switch (Direction)
+                {
+                    case "up":
+                        SetCarAddForce(collision.transform.right * 100);
 
-            collision.rigidbody.velocity = Vector3.zero;
+                        break;
+                    case "left":
+                        SetCarAddForce(collision.transform.right * 100);
+
+                        break;
+                    case "right":
+                        SetCarAddForce(collision.transform.right * -100);
+
+                        break;
+                    case "down":
+                        SetCarAddForce(collision.transform.right * -100);
+
+                        break;
+                }
+            }
+            else if (collision.transform.rotation.y == Car.transform.rotation.y)
+            {
+                switch (Direction)
+                {
+                    case "up":
+                        SetCarAddForce(collision.transform.forward * 100);
+
+                        break;
+                    case "left":
+                        SetCarAddForce(collision.transform.forward * 100);
+
+                        break;
+                    case "right":
+                        SetCarAddForce(collision.transform.forward * -100);
+
+                        break;
+                    case "down":
+                        SetCarAddForce(collision.transform.forward * -100);
+
+                        break;
+                }
+            }
+
+            Debug.Log("Hit");
             GetComponent<Rigidbody>().velocity = Vector3.zero;
-            hit = false;
-            kotei = false;
+            Hit = false;
+            time = 40;
         }
         if (collision.gameObject.tag == "Wall")
         {
+            s_Wheel.Move = false;
+            switch (Direction)
+            {
+                case "up":
+                    SetCarAddForce(collision.transform.right * 100);
+                  
+                    break;
+                case "left":
+                    SetCarAddForce(collision.transform.right * 100);
+                   
+                    break;
+                case "right":
+                    SetCarAddForce(collision.transform.right * -100);
+                  
+                    break;
+                case "down":
+                    SetCarAddForce(collision.transform.right * -100);
+                  
+                    break;
 
+            }
             GetComponent<Rigidbody>().velocity = Vector3.zero;
-            hit = false;
-            kotei = false;
+            Hit = false;
+            time = 40;
         }
     }
+    public void SetCarAddForce(Vector3 force)
+    {
+        Rigidbody rig = this.GetComponent<Rigidbody>();
 
+        rig.AddForce(force);
+
+    }
+
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.gameObject.tag == "Ground")
+        {
+            BoxCollider.enabled=false;
+            Destroy(this);
+            Direction = "touch";
+        }
+    }
 }
